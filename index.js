@@ -7,6 +7,8 @@ const bcrypt = require("bcrypt");
 const saltRound = 10;
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
+const mysql = require("mysql2");
+
 
 const { getUserBooks, insertData } = require("./Files/getUserBooks");
 
@@ -38,49 +40,95 @@ app.use(
   })
 );
 
-const { createPool } = require("mysql2/promise");
-const pool = createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
-});
+//If you want to use mysql promise
+// const { createPool } = require("mysql2/promise");
+// const pool = createPool({
+//   host: process.env.DB_HOST,
+//   user: process.env.DB_USER,
+//   password: process.env.DB_PASSWORD,
+//   database: process.env.DB_DATABASE,
+// });
 
-//My functions to handle creation and destruction of connection for every route
-async function copyQuery(query) {
-  let connection = await pool.getConnection();
-  try {
-    let [data] = await connection.query(query);
-    return data;
-  } catch (err) {
-    throw err;
-  } finally {
-    connection.release();
-  }
+// async function copyQuery(query) {
+//   // let connection = await pool.getConnection();
+//   try {
+//     let [data] = await connection.query(query);
+//     return data;
+//   } catch (err) {
+//     throw err;
+//   } finally {
+//     connection.release();
+//   }
+// }
+// async function copyExecute(setting) {
+//   // let connection = await pool.getConnection();
+//   try {
+//     let firstOption = setting.first;
+//     let secondOption = setting.second;
+//     if (firstOption && secondOption) {
+//       let [response] = await connection.execute(setting.sql, [
+//         setting.first,
+//         setting.second,
+//       ]);
+//       return response;
+//     } else if (firstOption && !secondOption) {
+//       let [response] = await connection.execute(setting.sql, [setting.first]);
+//       return response;
+//     } else {
+//       return {};
+//     }
+//   } catch (err) {
+//     throw err;
+//   } finally {
+//     connection.release();
+//   }
+// }
+
+function copyQuery(query) {
+  return new Promise((resolve, reject) => {
+    const connection = mysql.createConnection(
+      process.env.MYSQL_CONNECTION_STRING
+    );
+    connection.query(query, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+    connection.end();
+  });
 }
-async function copyExecute(setting) {
-  let connection = await pool.getConnection();
-  try {
-    let firstOption = setting.first;
-    let secondOption = setting.second;
-    if (firstOption && secondOption) {
-      let [response] = await connection.execute(setting.sql, [
-        setting.first,
-        setting.second,
-      ]);
-      return response;
-    } else if (firstOption && !secondOption) {
-      let [response] = await connection.execute(setting.sql, [setting.first]);
-      return response;
+
+function copyExecute(setting) {
+  return new Promise((resolve, reject) => {
+    const connection = mysql.createConnection(
+      process.env.MYSQL_CONNECTION_STRING
+    );
+    let { first, second, sql } = setting;
+    if (first && second) {
+      connection.execute(sql, [first, second], (err, response) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(response);
+        }
+      });
+    } else if (first && !second) {
+      connection.execute(sql, [first], (err, response) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(response);
+        }
+      });
     } else {
-      return {};
+      resolve({});
     }
-  } catch (err) {
-    throw err;
-  } finally {
-    connection.release();
-  }
+    connection.end();
+  });
 }
+
 
 //Add user to database
 app.post("/addUser", (req, res) => {
