@@ -5,26 +5,25 @@ const app = express();
 
 const bcrypt = require("bcrypt");
 const saltRound = 10;
-
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
 
 const { getUserBooks, insertData } = require("./Files/getUserBooks");
+
 require("dotenv").config();
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-
 app.use(
   cors({
-    origin: ["https://bookconnecttracker.netlify.app"], //change this
+    origin: ["https://bookconnecttracker.netlify.app"], //You can change this frontend Link
     methods: ["GET", "POST", "*", "DELETE", "UPDATE", "PUT"],
     credentials: true,
   })
 );
-
+//Creation of session
 app.use(
   session({
     key: "userId",
@@ -47,6 +46,7 @@ const pool = createPool({
   database: process.env.DB_DATABASE,
 });
 
+//My functions to handle creation and destruction of connection for every route
 async function copyQuery(query) {
   let connection = await pool.getConnection();
   try {
@@ -82,6 +82,19 @@ async function copyExecute(setting) {
   }
 }
 
+//Add user to database
+app.post("/addUser", (req, res) => {
+  const { img, user, pass } = req.body;
+  bcrypt.hash(pass, saltRound, async (err, hash) => {
+    if (err) throw err;
+    await copyQuery(
+      `insert into user(username,pass,profile_pic) values('${user}','${hash}','${img}')`
+    );
+    res.status(200).send("Success");
+  });
+});
+
+//Validating User
 app.post("/signIn/user", async (req, res) => {
   let userName = req.body.userName;
   let password = req.body.password;
@@ -89,11 +102,10 @@ app.post("/signIn/user", async (req, res) => {
     `select * from user where username='${userName}';`
   );
   if (data.length > 0) {
-    bcrypt.compare(password, data[0].pass, (err, response) => {
+    bcrypt.compare(password, data[0].pass, (err, response) => {//Decrypting Password
       if (err) throw err;
       else {
-        req.session.user = data;
-        console.log(req.session);
+        req.session.user = data;//Creating a Session
         res.status(200).json(data);
       }
     });
@@ -102,32 +114,16 @@ app.post("/signIn/user", async (req, res) => {
     res.json("error");
   }
 });
-app.get("/signIn/user", async (req, res) => {
-  setTimeout(() => {}, 3000);
-  if (req.session && req.session.user) {
-    res.send({ LoggedIn: true, user: req.session.user });
-  } else {
-    res.send({ LoggedIn: false });
-  }
-});
 
-app.get("/logout", (req, res) => {
-  req.session.destroy((err) => {
-    if (err) res.status(500).json({ message: "Logout failed" });
-    else {
-      res.clearCookie("userId"); // Clear the session cookie
-      res.status(200).json({ message: "Logout successful" });
-    }
-  });
-});
+app.get("/", getUserBooks);
 
+//Get all users from DB
 app.get("/getUsers", async (req, res) => {
   let response = await copyQuery("select * from user");
   res.json(response);
 });
 
-app.get("/", getUserBooks);
-
+//Books Searching
 app.post("/", async (req, res) => {
   const input = req.body.input;
   console.log(input);
@@ -145,6 +141,7 @@ app.post("/", async (req, res) => {
   }
 });
 
+//Genre Specific Books
 app.post("/genre/:genreid", async (req, res) => {
   let genre_name = req.params.genreid;
   let response = await copyQuery(
@@ -153,6 +150,7 @@ app.post("/genre/:genreid", async (req, res) => {
   res.status(200).json(response);
 });
 
+//Get specific user
 app.get("/getUsers/:userInput/:currUser", async (req, res) => {
   let userSearch = req.params.userInput;
   let currUser = req.params.currUser;
@@ -166,6 +164,7 @@ app.get("/getUsers/:userInput/:currUser", async (req, res) => {
   res.status(200).json({ usersOnSearch, tempFriends });
 });
 
+//Delete request
 app.delete("/deleteRequest/:user/:receiverId", async (req, res) => {
   let { user, receiverId } = req.params;
   await copyExecute({
@@ -176,6 +175,7 @@ app.delete("/deleteRequest/:user/:receiverId", async (req, res) => {
   res.status(200).send("Success");
 });
 
+//Get all requets of a User
 app.get("/requests/:reqId", async (req, res) => {
   let connection = await pool.getConnection();
   try {
@@ -198,6 +198,7 @@ app.get("/requests/:reqId", async (req, res) => {
   }
 });
 
+//Request Accepted
 app.post("/accepted", async (req, res) => {
   let { addedId, userId } = req.body;
   console.log("went");
@@ -216,11 +217,6 @@ app.post("/accepted", async (req, res) => {
       sql: `insert into friendships(sender,receiver) values(?,?)`,
       first: userId,
       second: addedId,
-    });
-    await copyExecute({
-      sql: `insert into friendships(sender,receiver) values(?,?)`,
-      first: addedId,
-      second: userId,
     });
   }
   res.status(200).send("Success");
@@ -257,17 +253,26 @@ app.delete("/reject/:rejId/:userId", async (req, res) => {
   }
 });
 
-app.post("/addUser", (req, res) => {
-  const { img, user, pass } = req.body;
-  bcrypt.hash(pass, saltRound, async (err, hash) => {
-    if (err) throw err;
-    await copyQuery(
-      `insert into user(username,pass,profile_pic) values('${user}','${hash}','${img}')`
-    );
-    res.status(200).send("Success");
+app.get("/signIn/user", async (req, res) => {
+  if (req.session && req.session.user) {
+    res.send({ LoggedIn: true, user: req.session.user });
+  } else {
+    res.send({ LoggedIn: false });
+  }
+});
+
+//Logout 
+app.get("/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) res.status(500).json({ message: "Logout failed" });
+    else {
+      res.clearCookie("userId"); // Clear the session cookie
+      res.status(200).json({ message: "Logout successful" });
+    }
   });
 });
 
+//Find friends of  a user
 app.get("/userFriends/:userId", async (req, res) => {
   let { userId } = req.params;
   let data = await copyExecute({
@@ -305,18 +310,18 @@ app.delete("/deleteFriend/:userId/:friendId", async (req, res) => {
   res.status(200).send("Success");
 });
 
+//Adding Book to a Shelf
 app.post("/userPreference", async (req, res) => {
   try {
-    const { user, value, bookId } = req.body;
-    console.log("went");
+    const { user, value:shelf, bookId } = req.body;
     let data = await copyExecute({
-      sql: `select * from ${value} where userId=? and bookId=?`,
+      sql: `select * from ${shelf} where userId=? and bookId=?`,
       first: user,
       second: bookId,
     });
     if (data.length === 0) {
       await copyExecute({
-        sql: `insert into ${value} (bookId,userId) values(?,?) `,
+        sql: `insert into ${shelf} (bookId,userId) values(?,?) `,
         first: bookId,
         second: user,
       });
@@ -328,6 +333,7 @@ app.post("/userPreference", async (req, res) => {
   }
 });
 
+//Deleting a book From a Shelf
 app.delete("/deletepreferences/:userId/:pref/:bookId", async (req, res) => {
   try {
     const { userId, pref, bookId } = req.params;
@@ -351,9 +357,9 @@ app.get("/getPreferences/:userId/:pref/:bookId", async (req, res) => {
   res.status(200).json(data[0]);
 });
 
+//Get all books added to a particular Shelf
 app.get("/getLibrary/:table/:userId", async (req, res) => {
   const { table, userId } = req.params;
-  console.log(table, userId);
   let response = await copyExecute({
     sql: `SELECT * FROM ${table} c join books b on b.book_id=c.bookId and c.userId=? order by created_at desc`,
     first: userId,
@@ -361,6 +367,7 @@ app.get("/getLibrary/:table/:userId", async (req, res) => {
   res.status(200).json(response);
 });
 
+//Get Friends Library 
 app.get("/getFriendsLibrary/:table/:userId", async (req, res) => {
   const { table, userId } = req.params;
   console.log(table, userId);
@@ -371,44 +378,44 @@ app.get("/getFriendsLibrary/:table/:userId", async (req, res) => {
   res.status(200).json(response);
 });
 
-//admins
+//admins Frontend Implementation Pending
 
-app.get("/admin/:adminId", async (req, res) => {
-  let adminId = req.params.adminId;
-  let data = await copyExecute({
-    sql: `select * from books where admin_id=?`,
-    first: adminId,
-  });
-  res.json(data);
-});
+// app.get("/admin/:adminId", async (req, res) => {
+//   let adminId = req.params.adminId;
+//   let data = await copyExecute({
+//     sql: `select * from books where admin_id=?`,
+//     first: adminId,
+//   });
+//   res.json(data);
+// });
 
-app.get("/admin/book/:bookId", async (req, res) => {
-  let bookId = req.params.bookId;
-  let data = await copyExecute({
-    sql: `select * from books where book_id=?`,
-    first: bookId,
-  });
-  res.json(data);
-});
+// app.get("/admin/book/:bookId", async (req, res) => {
+//   let bookId = req.params.bookId;
+//   let data = await copyExecute({
+//     sql: `select * from books where book_id=?`,
+//     first: bookId,
+//   });
+//   res.json(data);
+// });
 
-app.delete("/admin/:bookId", async (req, res) => {
-  let bookId = req.params.bookId;
-  await copyExecute({
-    sql: `delete from books where book_id=?`,
-    first: bookId,
-  });
-});
+// app.delete("/admin/:bookId", async (req, res) => {
+//   let bookId = req.params.bookId;
+//   await copyExecute({
+//     sql: `delete from books where book_id=?`,
+//     first: bookId,
+//   });
+// });
 
-app.put("/admin/bookUpdate/:bookId", async (req, res) => {
-  let bookId = req.params.bookId;
-  let { title, desc, auth, image } = req.body;
-  desc = desc?.replace("'", "");
-  desc = desc?.replace(/"/g, "");
+// app.put("/admin/bookUpdate/:bookId", async (req, res) => {
+//   let bookId = req.params.bookId;
+//   let { title, desc, auth, image } = req.body;
+//   desc = desc?.replace("'", "");
+//   desc = desc?.replace(/"/g, "");
 
-  await copyQuery(
-    `update books set title="${title}",book_desc="${desc}",author="${auth}",image_link="${image}" where book_id=${bookId}`
-  );
-});
+//   await copyQuery(
+//     `update books set title="${title}",book_desc="${desc}",author="${auth}",image_link="${image}" where book_id=${bookId}`
+//   );
+// });
 
 app.listen(process.env.DB_PORT, () => {
   console.log(`App is listening on port ${process.env.DB_PORT}`);
