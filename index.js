@@ -19,7 +19,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: ["http://localhost:3000"], //change this
+    origin: ["https://spontaneous-smakager-89ef19.netlify.app/"], //change this
     methods: ["GET", "POST", "*", "DELETE", "UPDATE", "PUT"],
     credentials: true,
   })
