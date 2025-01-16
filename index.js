@@ -28,7 +28,7 @@ app.use(
 app.use(
   session({
     key: "userId",
-    secret: "nithin@52141",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -41,10 +41,10 @@ app.use(
 
 const { createPool } = require("mysql2/promise");
 const pool = createPool({
-  host: "localhost",
-  user: "root",
-  password: "nithin@521",
-  database: "bookdb",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
 });
 
 async function copyQuery(query) {
@@ -473,8 +473,8 @@ app.put("/admin/bookUpdate/:bookId", async (req, res) => {
   );
 });
 
-app.listen(5000, () => {
-  console.log("App is listening on port 5000");
+app.listen(process.env.DB_PORT, () => {
+  console.log(`App is listening on port ${process.env.DB_PORT}`);
 });
 
 // app.delete('/reject/:rejId/:userId',(req,res)=>{
