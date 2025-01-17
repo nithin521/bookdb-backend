@@ -5,7 +5,7 @@ CREATE TABLE "admins" (
   "admin_id" int NOT NULL,
   "admin_name" varchar(50) NOT NULL,
   PRIMARY KEY ("admin_id")
-);
+); \n
 
 //Books
 CREATE TABLE "books" (
