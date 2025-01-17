@@ -18,13 +18,19 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use(
-  cors({
-    origin: ["https://bookconnecttracker.netlify.app"], //You can change this frontend Link
-    methods: ["GET", "POST", "DELETE", "PUT"],
-    credentials: true,
-  })
-);
+// app.use(
+//   cors({
+//     origin: ["https://bookconnecttracker.netlify.app"], //You can change this frontend Link
+//     methods: ["GET", "POST", "DELETE", "PUT"],
+//     credentials: true,
+//   })
+// );
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://bookconnecttracker.netlify.app'); // Replace with your actual frontend URL
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE'); // Allow specific methods
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // Allow specific headers
+  next();
+});
 //Creation of session
 app.use(
   session({
