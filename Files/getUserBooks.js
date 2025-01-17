@@ -1,7 +1,7 @@
 const axios = require("axios");
-const { createPool } = require("mysql2/promise");
+//const { createPool } = require("mysql2/promise");
 require("dotenv").config();
-
+const mysql = require("mysql2");
 
 function copyQuery(query) {
   return new Promise((resolve, reject) => {
