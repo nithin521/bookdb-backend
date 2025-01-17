@@ -2,24 +2,23 @@ const axios = require("axios");
 const { createPool } = require("mysql2/promise");
 require("dotenv").config();
 
-const pool = createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
-});
 
-async function copyQuery(query, value) {
-  let connection = await pool.getConnection();
-  try {
-    let [data] = await connection.query(query, value);
-    return data;
-  } catch (err) {
-    console.log(err);
-  } finally {
-    connection.release();
-  }
+function copyQuery(query) {
+  return new Promise((resolve, reject) => {
+    const connection = mysql.createConnection(
+      process.env.MYSQL_CONNECTION_STRING
+    );
+    connection.query(query, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+    connection.end();
+  });
 }
+
 
 async function insertData(val) {
   console.log(val);
