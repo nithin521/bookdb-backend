@@ -21,7 +21,7 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: ["https://bookconnecttracker.netlify.app"], //You can change this frontend Link
-    methods: ["GET", "POST", "*", "DELETE", "UPDATE", "PUT"],
+    methods: ["GET", "POST", "DELETE", "PUT"],
     credentials: true,
   })
 );
@@ -35,7 +35,8 @@ app.use(
     cookie: {
       expires: 60 * 60 * 24 * 500, //half day
       httpOnly: true,
-      secure: false,
+      secure: true,
+      sameSite:"none",
     },
   })
 );
